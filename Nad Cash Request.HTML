@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NAD Cash Request Form</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        label, input, textarea {
+            display: block;
+            margin: 10px 0;
+        }
+        input, textarea {
+            background-color: #f0f0f0;
+        }
+        button {
+            margin: 20px 0;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+        }
+        .readonly {
+            background-color: #f0f0f0;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <h1 style="margin-top: 40px;">NAD Cash Request Form</h1>
+    <form id="cashRequestForm">
+        <label for="requestDate">Date:</label>
+        <input type="date" id="requestDate" name="requestDate" required>
+
+        <label for="requestSerial">Request Serial:</label>
+        <input type="text" id="requestSerial" name="requestSerial" class="readonly" readonly>
+
+        <label for="requesterName">Requester Name:</label>
+        <input type="text" id="requesterName" name="requesterName" required>
+
+        <label for="requesterPosition">Requester Position:</label>
+        <input type="text" id="requesterPosition" name="requesterPosition" required>
+
+        <label for="recipient">Recipient:</label>
+        <input type="text" id="recipient" name="recipient" required>
+
+        <label for="amount">Amount (SAR):</label>
+        <input type="number" id="amount" name="amount" step="0.01" required>
+
+        <label for="projectCode">Project Code:</label>
+        <input type="text" id="projectCode" name="projectCode" required>
+
+        <label for="ibanNumber">IBAN Number:</label>
+        <input type="text" id="ibanNumber" name="ibanNumber" required>
+
+        <label for="bank">Bank:</label>
+        <input type="text" id="bank" name="bank" required>
+
+        <label for="reason">Reason of Transfer:</label>
+        <textarea id="reason" name="reason" required></textarea>
+
+        <label for="attachment">Attachment (optional):</label>
+        <input type="file" id="attachment" name="attachment" accept="image/*">
+
+        <label for="signature">Responsible Signature:</label>
+        <input type="file" id="signature" name="signature" accept="image/*" required>
+
+        <button type="button" onclick="generateRequest()">Generate Request</button>
+        <button type="button" onclick="generatePDF()">Export as PDF</button>
+    </form>
+
+    <h2>Request Details</h2>
+    <textarea id="requestDetails" readonly></textarea>
+
+    <script>
+        function generateRequestSerial() {
+            const now = new Date();
+            return now.getFullYear().toString() + 
+                (now.getMonth() + 1).toString().padStart(2, '0') + 
+                now.getDate().toString().padStart(2, '0') + 
+                now.getHours().toString().padStart(2, '0') + 
+                now.getMinutes().toString().padStart(2, '0') + 
+                now.getSeconds().toString().padStart(2, '0');
+        }
+
+        function generateRequest() {
+            const requestDate = document.getElementById('requestDate').value;
+            const requestSerial = generateRequestSerial();
+            document.getElementById('requestSerial').value = requestSerial;
+            const requesterName = document.getElementById('requesterName').value;
+            const requesterPosition = document.getElementById('requesterPosition').value;
+            const recipient = document.getElementById('recipient').value;
+            const amount = parseFloat(document.getElementById('amount').value).toFixed(2);
+            const projectCode = document.getElementById('projectCode').value;
+            const ibanNumber = document.getElementById('ibanNumber').value;
+            const bank = document.getElementById('bank').value;
+            const reason = document.getElementById('reason').value;
+
+            if (projectCode.charAt(0) !== 'N') {
+                alert("Please check If project on NAD");
+                return;
+            }
+
+            const requestDetails = 
+                `Date: ${requestDate}\n` +
+                `Request Serial: ${requestSerial}\n` +
+                `Requester Name: ${requesterName}\n` +
+                `Requester Position: ${requesterPosition}\n` +
+                `Recipient: ${recipient}\n` +
+                `Amount (SAR): ${amount}\n` +
+                `Project Code: ${projectCode}\n` +
+                `IBAN Number: ${ibanNumber}\n` +
+                `Bank: ${bank}\n` +
+                `Reason of Transfer: ${reason}`;
+
+            document.getElementById('requestDetails').value = requestDetails;
+        }
+
+        async function generatePDF() {
+            const { jsPDF } = window.jspdf;
+
+            const requestDate = document.getElementById('requestDate').value;
+            const requestSerial = document.getElementById('requestSerial').value;
+            const requesterName = document.getElementById('requesterName').value;
+            const requesterPosition = document.getElementById('requesterPosition').value;
+            const recipient = document.getElementById('recipient').value;
+            const amount = parseFloat(document.getElementById('amount').value).toFixed(2);
+            const projectCode = document.getElementById('projectCode').value;
+            const ibanNumber = document.getElementById('ibanNumber').value;
+            const bank = document.getElementById('bank').value;
+            const reason = document.getElementById('reason').value;
+            const signatureFile = document.getElementById('signature').files[0];
+            const attachmentFile = document.getElementById('attachment').files[0];
+
+            if (!requestDate || !requestSerial || !requesterName || !requesterPosition || !recipient || !amount || !projectCode || !ibanNumber || !bank || !reason || !signatureFile) {
+                alert("Please fill out all required fields.");
+                return;
+            }
+
+            if (projectCode.charAt(0) !== 'N') {
+                alert("Please check If project on NAD");
+                return;
+            }
+
+            // Load watermark image
+            const watermarkUrl = 'https://i.ibb.co/BcgNW3R/nad.jpg'; // Watermark image URL
+            const watermarkImg = new Image();
+            watermarkImg.crossOrigin = "anonymous"; // Ensure CORS compatibility
+            watermarkImg.src = watermarkUrl;
+
+            watermarkImg.onload = async function() {
+                const doc = new jsPDF();
+
+                // Add watermark to each page
+                const imgWidth = doc.internal.pageSize.getWidth();
+                const imgHeight = doc.internal.pageSize.getHeight();
+                doc.addImage(watermarkImg, 'JPEG', 0, 0, imgWidth, imgHeight); // Add image at original size
+
+                // Form fields
+                doc.setFont("helvetica");
+                doc.setFontSize(18);
+                doc.text("NAD designer for contracting", 105, 40, null, null, "center");
+
+                doc.setFontSize(12);
+                doc.text("Date:", 20, 60);
+                doc.text(requestDate, 70, 60);
+
+                doc.setTextColor(255, 0, 0); // Set text color to red
+                doc.text("Request Serial:", 20, 70);
+                doc.text(requestSerial, 70, 70);
+                doc.setTextColor(0, 0, 0); // Reset text color to black
+
+                doc.text("Requester Name:", 20, 80);
+                doc.text(requesterName, 70, 80);
+
+                doc.text("Requester Position:", 20, 90);
+                doc.text(requesterPosition, 70, 90);
+
+                doc.text("Recipient:", 20, 100);
+                doc.text(recipient, 70, 100);
+
+                doc.text("Amount (SAR):", 20, 110);
+                doc.text(amount, 70, 110);
+
+                doc.text("Project Code:", 20, 120);
+                doc.text(projectCode, 70, 120);
+
+                doc.text("IBAN Number:", 20, 130);
+                doc.text(ibanNumber, 70, 130);
+
+                doc.text("Bank:", 20, 140);
+                doc.text(bank, 70, 140);
+
+                doc.text("Reason of Transfer:", 20, 150);
+                doc.text(reason, 70, 150);
+
+                doc.text("Responsible Signature:", 20, 160);
+
+                // Read the signature file and draw it on the PDF
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const sigImg = new Image();
+                    sigImg.onload = async function() {
+                        doc.addImage(sigImg, 'JPEG', 70, 170, 50, 20); // Adjust size and position as needed
+                        doc.text("Project Manager Signature", 20, 200);
+                        doc.text("Technical Manager Signature", 20, 220);
+                        doc.text("General Manager Signature", 20, 240);
+
+                        if (attachmentFile) {
+                            const attachmentReader = new FileReader();
+                            attachmentReader.onload = async function(event) {
+                                const attachmentImg = new Image();
+                                attachmentImg.onload = function() {
+                                    doc.addPage();
+                                    doc.addImage(attachmentImg, 'JPEG', 0, 0, imgWidth, imgHeight);
+                                    doc.save(`NAD_Cash_Request_${requestSerial}.pdf`);
+                                };
+                                attachmentImg.src = event.target.result;
+                            };
+                            attachmentReader.readAsDataURL(attachmentFile);
+                        } else {
+                            doc.save(`NAD_Cash_Request_${requestSerial}.pdf`);
+                        }
+                    };
+                    sigImg.src = event.target.result;
+                };
+                reader.readAsDataURL(signatureFile);
+            };
+        }
+    </script>
+</body>
+</html>
